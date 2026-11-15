@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ay-automate/ayrank-mcp",
+  "title": "AY Rank free SEO and GEO tools",
+  "description": "Free AY Rank checks for AI search: AI crawler access, robots.txt, sitemaps, hreflang, page size.",
+  "repository": {
+    "url": "https://github.com/ay-automate/ayrank-mcp",
+    "source": "github",
+    "id": "1459269731"
+  },
+  "websiteUrl": "https://www.ayrank.com/tools",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "ayrank-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "AYRANK_MCP_ALLOW_WRITES",
+          "description": "Set to 1 to let ayrank_request_free_audit and ayrank_indexnow_submit send for real when a call also passes confirm: true. Unset means dry runs only.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "choices": ["0", "1"],
+          "default": "0"
+        }
+      ]
+    }
+  ]
+}

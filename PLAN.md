@@ -57,14 +57,14 @@ Two tools change something outside the agent: `ayrank_request_free_audit` and `a
 2. Otherwise the tool makes no network call and returns a dry-run preview: the method, the URL, the exact JSON body it would send, what the server does with it, and which of the two conditions is missing.
 3. Client-side rate limit: each write tool runs at most once per 60 seconds and at most 5 times per server process. Reads share one limiter of 30 calls per 60 seconds, the same as the API, and a call over the limit returns the wait time instead of hitting the API. A 429 from the API is passed back with its Retry-After.
 4. Money: every endpoint is free, so no tool can spend money and none takes `max_cost`. A paid tool would only be added with a required `max_cost` that it refuses to run without.
-5. Email: no tool sends email.
+5. Email: `ayrank_request_free_audit` creates a lead and notifies the AY Rank team; nothing is emailed to you or anyone else. The other tools send no email.
 
 What each write does on the server:
 
-- `ayrank_request_free_audit` posts `{ email, url, name?, notes?, buyer_questions? (up to 3, 200 characters each), source: "mcp", utm_source: "ayrank-mcp", utm_medium: "mcp", utm_campaign: "ayrank-mcp" }`. The route checks the fields, saves one lead row and sends its usual new-lead notification to the AY Rank team inbox, the same as the website's audit form. Source `mcp` matches no lead magnet, so the person who asked gets no automatic email. A person from the team replies within 24 hours, as the website form promises. The tool says that it does not run the audit itself. The route also limits each IP to 5 requests per minute.
+- `ayrank_request_free_audit` posts `{ email, url, name?, notes?, buyer_questions? (up to 3, 200 characters each), source: "mcp", cta_id: "mcp", utm_source: "ayrank-mcp", utm_medium: "mcp", utm_campaign: "ayrank-mcp" }`. It creates a lead and notifies the AY Rank team; nothing is emailed to you or anyone else. Source and cta_id `mcp` match no lead magnet, so the route sends no automatic email to the requester. A person from the team follows up within 24 hours, as the website form promises. The tool does not run the audit itself. The route also limits each IP to 5 requests per minute.
 - `ayrank_indexnow_submit` sends up to 100 URLs on a host the caller controls to api.indexnow.org, after the API re-checks the key file on that host.
 
-Open question for the reviewer: the lead route's team notification is a server-side email to the AY Rank team. The tool sends nothing itself. If that still counts as "sends email", the alternative is to keep `ayrank_request_free_audit` dry-run only.
+Decision (CoS, 15 Nov 2026): both write tools stay, behind this gate. No live write call in tests: the dry run and the stub prove them.
 
 ## Versions
 
@@ -84,14 +84,13 @@ No other direct dependencies. Tests use the built-in `node:test`. Node 20 or new
 - stdio, the default.
 - Streamable HTTP with `--http`, stateless, bound to 127.0.0.1 (port from `--port`, default 3333). It uses the SDK's own StreamableHTTPServerTransport on `node:http`, about 40 lines. If it turns out to need more than that, it gets dropped and the PR says so.
 
-## Install (README, after the build)
+## Install (README)
 
-The package is not published to npm. Install from this GitHub repo at a tag, or from a local clone and build. Both get tested before the README lists them.
+The package is not published to npm. Install from a clone of this repo at tag v0.1.0 and a local build (`npm ci`, `npm run build`), then point the client at `node /path/to/ayrank-mcp/dist/src/index.js`. The repo's .npmrc sets ignore-scripts, so a `github:` npx install would not build; the README does not offer it.
 
-- Claude Code: `claude mcp add ayrank-tools -- npx -y github:ay-automate/ayrank-mcp#v0.1.0`
+- Claude Code: `claude mcp add ayrank-tools -- node /path/to/ayrank-mcp/dist/src/index.js`
 - Claude Desktop: the `mcpServers` JSON block with the same command and args.
 - Cursor: `.cursor/mcp.json` with the same block.
-- Local build: `git clone`, `npm ci`, `npm run build`, then point the client at `node <path>/dist/index.js`.
 
 Writes stay off unless `AYRANK_MCP_ALLOW_WRITES=1` sits in the server's environment.
 
@@ -112,7 +111,7 @@ All installs, builds and tests run on a clean Linux build machine, not on a lapt
    - Each write tool returns a dry run, with no request, when confirm is missing, when the environment flag is missing, and when both are missing.
    - With both conditions met, each write tool sends one request with the expected body (`source: "mcp"`, only fields the lead route allows), and a second call inside 60 seconds is refused.
    - `ayrank_tracking_info` makes no request and returns the UTM links.
-2. Live tests against www.ayrank.com, run once. One GET per read tool (18 calls, 2.5 seconds apart, under the 30 per 60 seconds limit), checking HTTP 200 and the `poweredBy` field. The two write tools run live in dry-run mode only. No real lead, no real IndexNow submit.
+2. Live tests against www.ayrank.com, run once. One GET per read tool (18 calls, about 3 seconds apart, under the 30 per 60 seconds limit), checking HTTP 200 and the `poweredBy` field. The two write tools run live in dry-run mode only. No real lead, no real IndexNow submit.
 3. Transport tests. Spawn the built server over stdio and list tools. Start `--http` on a free port, initialize and list tools.
 
 Done means: tsc with 0 errors, all tests green, README install commands tested, leak scan clean, server.json valid against the fetched schema.
